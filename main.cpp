@@ -57,7 +57,7 @@ void startmenu(){
                 break;
             case 3: //user data
                 break;
-            case 4: //kill term
+            case 4: //kill term`
                 std::exit(0);
         }
     };
@@ -90,7 +90,13 @@ void startmenu(){
     }
 }
 void play(){}
+void cselect(){
+    int selected=1;
 
+}
+void userdata(){
+    int selected=1;
+}
 int main(){
     std::cout << "Start";
     startmenu();
