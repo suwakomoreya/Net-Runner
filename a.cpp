@@ -24,3 +24,17 @@ void loadContract(){
         });
     }
 }
+
+/** for(int i =0;i<contracts.size();i++){
+        Contract& c= contracts[i];
+        std::cout << "\n" << c.name << std::endl;
+        std::cout << c.description << std::endl;
+        if(streetcred>= c.requiredcred){
+            std::cout << Color::green << "[READY]";
+        }
+        else{
+            std::cout << Color::red << "[LOCKED] Requires " << Color::blue << c.requiredcred << Color::reset << " Streetcred";
+        }
+        std::cout << Color::reset << std::endl;
+
+    } */

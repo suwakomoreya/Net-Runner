@@ -8,8 +8,10 @@
 #include "contract.h"
 using json = nlohmann::json;
 //libs
-int streetcred = 0;
+int streetcred = 10;
+int selectedMid =0;
 bool laststage = false, missionselected = false;
+
 
 void clearterm(){
     #ifdef _WIN32
@@ -20,6 +22,9 @@ void clearterm(){
 };
 
 void startmenu(ContractM& manager){
+    std::vector<Contract>& contracts = manager.contracts;
+    Contract& c = contracts[selectedMid];
+    
     std::string menutext[] ={
         "Select a contract",
         "Browse available contracts",
@@ -34,11 +39,29 @@ void startmenu(ContractM& manager){
         menutext[0] = "Start cipher";
     }
     auto menugraphic =[&](){
+        if(missionselected == true ){
+        menutext[0] = "Start cipher";
+    }
+        auto it = std::find_if( //iterator
+            contracts.begin(),contracts.end(),[](const Contract& c){
+                return c.id == selectedMid;
+            }
+        );
+        if(it!=contracts.end()){
+            Contract&c = *it;
+        }
         clearterm();
         
         std::cout << "==================================" << std::endl;
         std::cout << Color::bold << "Net Runner" << Color::reset << std::endl;
         std::cout << "selected: " << selected << std::endl; //del later
+        if(it!=contracts.end()){
+            Contract& c = *it;
+            std::cout << "Mission Selected: " << c.name << std::endl;
+        }
+        else{
+            std::cout << "Mission Selected: Unemployed" << std::endl;
+        } 
         std::cout << "----------------------------------" << std::endl;
         std::cout << "Streetcred: " << streetcred << std::endl;
         for(int i =0; i<5; i++){ //navigationals
@@ -119,6 +142,7 @@ void ContractM::loadContract(){
         contract.id = c["id"];
         contract.name = c["name"];
         contract.description = c["description"];
+        contract.difficulty = c["difficulty"];
         contract.requiredcred = c["required_cred"];
         contract.rewardcred = c["reward_cred"];
 
@@ -144,41 +168,76 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
     
     auto menugraphic = [&](){
         clearterm();
+        
 
         std::cout << "==================================" << std::endl;
         std::cout << Color::bold <<"Contracts" << Color::reset << std::endl;
         std::cout << "----------------------------------" << std::endl;
-
+        auto check = [&](Contract& c){
+            if(streetcred>=c.requiredcred){
+                std::cout << Color::green << "[Ready]" << std::endl;
+            }
+            else{
+                std::cout << Color::red << "[Locked]" << std::endl;
+            }
+        };
         for(int i =0; i<count;i++){
             Contract& c = contracts[i];
+
+            std::string cdiff = c.difficulty == "Easy" ? Color::green : c.difficulty == "Medium" ? Color::yellow : Color::purple;
+
             if(i==selected){
-                std::cout << Color::white << "> " << c.name << Color::reset << std::endl;
-                std::cout << Color::white << "  " << c.description << Color::reset << std::endl;
+                std::cout << Color::white << "> " << c.name << Color::reset;
+                check(c);
+                std::cout << Color::white << "      " << "Contract Info:" << c.description << Color::reset << std::endl;
+                std::cout << Color::white << "      " << "Difficulty: "<< cdiff << c.difficulty << Color::reset << std::endl;
+                std::cout << "      " << "Reward Credit: " << c.rewardcred << std::endl;
             }
             else{
                 std::cout << Color::red << " " << c.name << Color::reset;
-            }
-            if(streetcred>=c.requiredcred){
-                std::cout << Color::green << "[Ready]";
-            }
-            else{
-                std::cout << Color::red << "[Locked]";
+                check(c);
             }
         }
     };
-
-    for(int i =0;i<contracts.size();i++){
-        Contract& c= contracts[i];
-        std::cout << "\n" << c.name << std::endl;
-        std::cout << c.description << std::endl;
-        if(streetcred>= c.requiredcred){
-            std::cout << Color::green << "[READY]";
+    while(true){
+        menugraphic();
+        int key = _getch();
+        if(key==0 || key == 224){
+            key = _getch();
         }
-        else{
-            std::cout << Color::red << "[LOCKED] Requires" << c.requiredcred << " Streetcred";
-        }
-        std::cout << Color::reset << std::endl;
+    
 
+        switch(key){
+            case 72:
+                selected--;
+                if(selected < 0){
+                    selected = count-1;
+
+                }
+                break;
+            case 80:
+                selected++;
+                if(selected >= count){
+                    selected = 0;
+
+                }
+                break;
+            case 13:
+                if(streetcred>=contracts[selected].requiredcred){
+                    clearterm();
+                    missionselected = true;
+                    selectedMid = contracts[selected].id;
+                    return;
+                }
+                else{
+                    std::cout << "\n Required streetcred: " << Color::red << contracts[selected].requiredcred << Color::reset << std::endl;
+                    std::cout << " Your streetcred: " << streetcred << std::endl;
+                    _getch();
+                }
+            break;
+            case 27: 
+                return;
+        }
     }
     _getch();
 }
