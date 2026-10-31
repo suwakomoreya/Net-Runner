@@ -1,0 +1,44 @@
+[
+    {
+        "id": 0,
+        "name": "Template",
+        "description": "Template",
+        "difficulty": "Template",
+        "required_cred": 0,
+        "reward_cred": 0,
+
+        "cipher":{
+            "type": "caesar",
+            "encrypted_message": "IIGB",
+            "shift": 2
+        }
+    },
+    {
+        "id": 1,
+        "name": "Petty Burglar",
+        "description": "Too scared for corpos",
+        "difficulty": "Easy",
+        "required_cred": 0,
+        "reward_cred": 10,
+
+        "cipher":{
+            "type": "caesar",
+            "encrypted_message": "IIGB",
+            "shift": 2
+        }
+    },
+    {
+        "id": 2,
+        "name": "Firewall",
+        "description": "Rob a poor chooms bank account",
+        "difficulty": "Easy",
+        "required_cred":30,
+        "reward_cred": 20,
+
+        "cipher":{
+            "type": "caesar",
+            "encrypted_message": "IlahgNhb",
+            "shift": 2
+        }
+    }
+]
