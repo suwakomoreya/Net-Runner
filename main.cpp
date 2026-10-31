@@ -3,13 +3,13 @@
 #include <string>
 #include <conio.h>
 #include "json.hpp"
-
+#include <filesystem>
 #include "header.h"
 #include "contract.h"
 using json = nlohmann::json;
 //libs
-int streetcred = 120;
-bool laststage = false, missionselected = true;
+int streetcred = 0;
+bool laststage = false, missionselected = false;
 
 void clearterm(){
     #ifdef _WIN32
@@ -40,6 +40,7 @@ void startmenu(ContractM& manager){
         std::cout << Color::bold << "Net Runner" << Color::reset << std::endl;
         std::cout << "selected: " << selected << std::endl; //del later
         std::cout << "----------------------------------" << std::endl;
+        std::cout << "Streetcred: " << streetcred << std::endl;
         for(int i =0; i<5; i++){ //navigationals
             if(i==selected){
                 std::cout << Color::white << ">. " << menutext[i] << Color::reset << std::endl;
@@ -100,20 +101,12 @@ void cselect(){
 void userdata(){
     int selected=1;
 }
-int main(){
-    ContractM manager;
-    manager.loadContract();
-    startmenu(manager);
-    std::cout << "Start";
-   
-    std::cout << "End";
-    return 0;
-}
 
 void ContractM::loadContract(){
     std::ifstream file("data/contracts.json");
     if(!file.is_open()){
         std::cout << "couldnt open contracts.json";
+        _getch();
         return;
     }
 
@@ -136,6 +129,9 @@ void ContractM::loadContract(){
         contracts.push_back(contract);
     }
     file.close();
+
+    std::cout << "contracts loaded";
+    _getch();
 }
 void ContractM::browseContract(int streetcred){ //NEED to fix this. currently cant find contracts. need to load contract maybe?
     if(contracts.empty()){
@@ -184,4 +180,16 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
         std::cout << Color::reset << std::endl;
 
     }
+    _getch();
+}
+int main(){
+    std::cout << "Loaded:" << std::filesystem::current_path() << std::endl;
+    _getch();
+
+    ContractM manager;
+    manager.loadContract();
+    std::cout << manager.contracts.size() << std::endl;
+    _getch();
+    startmenu(manager);
+    return 0;
 }
