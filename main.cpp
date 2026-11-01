@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <string>
 #include <conio.h>
+#include <chrono>
+#include <thread>
 #include "json.hpp"
 #include <filesystem>
 #include "header.h"
@@ -240,6 +242,9 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
         }
     }
     _getch();
+}
+void ContractM::startContract(int id){
+    
 }
 int main(){
     std::cout << "Loaded:" << std::filesystem::current_path() << std::endl;

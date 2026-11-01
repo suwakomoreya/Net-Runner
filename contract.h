@@ -17,5 +17,5 @@ class ContractM{
         std::vector<Contract> contracts;
         void loadContract();
         void browseContract(int streetcred);
-        void startContract(int index);
+        void startContract(int id);
 };
