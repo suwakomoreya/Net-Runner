@@ -57,6 +57,7 @@ void startmenu(ContractM& manager){
         std::cout << "==================================" << std::endl;
         std::cout << Color::bold << "Net Runner" << Color::reset << std::endl;
         std::cout << "selected: " << selected << std::endl; //del later
+        std::cout << missionselected << "   " << selectedMid << std::endl;
         if(it!=contracts.end()){
             Contract& c = *it;
             std::cout << "Mission Selected: " << c.name << std::endl;
@@ -78,6 +79,11 @@ void startmenu(ContractM& manager){
     auto runselection=[&](){ //menu
         switch(selected){
             case 0: //select contract
+                if(missionselected == true){
+                    clearterm();
+                    manager.startContract(selectedMid);
+                    break;
+                }
                 break;
             case 1: //contracts
                 clearterm();
@@ -244,6 +250,47 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
     _getch();
 }
 void ContractM::startContract(int id){
+    Contract& c = contracts[selectedMid-1];
+    int timelimit;
+    std::string answer;
+    auto answerenc = [&](){
+        for(int i = 0;i< (c.encmessage).size(); i++){
+
+        }
+    };
+    auto initgraphic = [&](){
+        if(c.difficulty == "Easy"){
+            timelimit = 90;
+        }
+        else if(c.difficulty == "Medium"){
+            timelimit = 60;
+        }
+        else if(c.difficulty == "Hard"){
+            timelimit = 45;
+        }
+        if(c.name == "Konpeki Plaza Heist"){
+            timelimit = 50;
+        }
+        
+        std::cout << "=========================================" << std::endl;
+        std::cout << Color::red << "Contract: " << c.name << std::endl;
+        std::cout << "Jacking in";
+        for(int i=0;i<3;i++){
+            std::cout << ".";
+            std::cout << std::flush;
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        std::cout << Color::reset << Color::green << std::endl << "Ready!" << Color::reset << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::cout << "Decipher type: Caesar (Every letter is shifted to the right alphabetically by X amount)" << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        std::cout << "Press anything to start Caesar Decipher" << std::endl;
+        _getch();     
+    };
+    auto starttime = std::chrono::steady_clock::now();
+
+
+    initgraphic();
     
 }
 int main(){
