@@ -9,6 +9,7 @@
 #include "header.h"
 #include "contract.h"
 #include "accessory.h"
+void browseAccessories(AccessoryM& manager);
 using json = nlohmann::json;
 //libs
 int streetcred = 30;
@@ -23,7 +24,7 @@ void clearterm(){
         system("clear");
     #endif
 };
-void browseAccessories(AccessoryM& manager);
+
 void startmenu(ContractM& manager, AccessoryM& accessoryManager){
     std::vector<Contract>& contracts = manager.contracts;
     
@@ -32,7 +33,6 @@ void startmenu(ContractM& manager, AccessoryM& accessoryManager){
         "Select a contract",
         "Browse available contracts",
         "Select gear",
-        "View user data",
         "Exit terminal"
     };
     int selected = 0;
@@ -68,7 +68,7 @@ void startmenu(ContractM& manager, AccessoryM& accessoryManager){
         } 
         std::cout << "----------------------------------" << std::endl;
         std::cout << "Streetcred: " << streetcred << std::endl;
-        for(int i =0; i<5; i++){ //navigationals
+        for(int i =0; i<count; i++){ //navigationals
             if(i==selected){
                 std::cout << Color::white << ">. " << menutext[i] << Color::reset << std::endl;
             }
@@ -98,9 +98,8 @@ void startmenu(ContractM& manager, AccessoryM& accessoryManager){
             case 2: //gear
                 browseAccessories(accessoryManager);
                 break;
-            case 3: //user data
-                break;
-            case 4: //kill term
+            
+            case 3: //kill term
                 std::exit(0);
         }
     };
@@ -160,37 +159,75 @@ void cselect(){
 }
 */
 
-void ContractM::loadContract(){
+bool ContractM::loadContract(){
     std::ifstream file("data/contracts.json");
+
     if(!file.is_open()){
-        std::cout << "couldnt open contracts.json";
-        _getch();
-        return;
+        std::cerr << "Couldn't open contracts.json\n";
+        return false;
     }
 
-    json data;
-    file >> data;
+    try{
+        json data;
+        file >> data;
 
-    for(auto& c : data){
-        Contract contract;
-        
-        contract.id = c["id"];
-        contract.name = c["name"];
-        contract.description = c["description"];
-        contract.difficulty = c["difficulty"];
-        contract.requiredcred = c["required_cred"];
-        contract.rewardcred = c["reward_cred"];
-        contract.completed = c.value("completed",false);
-        contract.cipherType = c["cipher"]["type"];
-        contract.encmessage = c["cipher"]["encrypted_message"];
-        contract.shift = c["cipher"]["shift"];
+        if(!data.is_array()){
+            throw std::runtime_error(
+                "Contracts must be stored in an array"
+            );
+        }
 
-        contracts.push_back(contract);
+        std::vector<Contract> loadedContracts;
+
+        for(const auto& c : data){
+            if(!c.is_object() ||
+               !c.contains("cipher") ||
+               !c["cipher"].is_object()){
+                throw std::runtime_error(
+                    "Invalid contract structure"
+                );
+            }
+
+            Contract contract;
+
+            contract.id = c.at("id").get<int>();
+            contract.name = c.at("name").get<std::string>();
+            contract.description =
+                c.at("description").get<std::string>();
+            contract.difficulty =
+                c.at("difficulty").get<std::string>();
+            contract.requiredcred =
+                c.at("required_cred").get<int>();
+            contract.rewardcred =
+                c.at("reward_cred").get<int>();
+            contract.completed = c.value("completed", false);
+
+            contract.cipherType =
+                c["cipher"].at("type").get<std::string>();
+            contract.encmessage =
+                c["cipher"].at("encrypted_message").get<std::string>();
+            contract.shift =
+                c["cipher"].at("shift").get<int>();
+
+            if(contract.requiredcred < 0 ||
+               contract.rewardcred < 0 ||
+               contract.shift < 0 || contract.shift > 25){
+                throw std::runtime_error(
+                    "Invalid contract values"
+                );
+            }
+
+            loadedContracts.push_back(contract);
+        }
+
+        contracts = std::move(loadedContracts);
+        return true;
     }
-    file.close();
-
-    std::cout << "contracts loaded";
-    _getch();
+    catch(const std::exception& e){
+        std::cerr << "Invalid contracts.json: "
+                  << e.what() << '\n';
+        return false;
+    }
 }
 void ContractM::browseContract(int streetcred){ //NEED to fix this. currently cant find contracts. need to load contract maybe?
     if(contracts.empty()){
@@ -284,61 +321,104 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
     _getch();
 }
 void ContractM::startContract(int id, AccessoryM& accessoryManager){
-    auto It = std::find_if(contracts.begin(),contracts.end(),[id](const Contract& c){
-        return c.id == id;
-    });
+    auto It = std::find_if(
+        contracts.begin(), contracts.end(),
+        [id](const Contract& c){
+            return c.id == id;
+        }
+    );
+
     if(It == contracts.end()){
         std::cout << "Contract id can't be found: " << id << "\n";
         _getch();
         return;
     }
+
     Contract& c = *It;
-    int timelimit =30;
-    int lives=3 + accessoryManager.getbonuslives();
+
+    int timelimit = 30;
+
+    long long totallives = 3LL + accessoryManager.getbonuslives();
+    int lives = static_cast<int>(std::min<long long>(
+        totallives, std::numeric_limits<int>::max()
+    ));
+
     std::string answer = c.encmessage;
     std::string userans;
 
-    auto answerenc = [&](){
-        for(int i = 0;i< (c.encmessage).size(); i++){
-            answer[i] = (c.encmessage[i] - 'A' - c.shift +26) % 26 + 'A';
-        }
-    };
+    // Decode Caesar cipher (letters only, keeps case and punctuation)
+    for(char& ch : answer){
+        ch = caesarDecodeChar(ch, c.shift);
+    }
+
     auto winscreen = [&](){
         std::cout << "=================================" << std::endl;
         std::cout << "Contract '" << c.name << "' completed." << std::endl;
         std::cout << "Streetcred: " << streetcred;
+
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        int reward = std::round(c.rewardcred * accessoryManager.getcredmult()); 
-        for(int i=streetcred; i<streetcred + reward;i++){
-            std::cout << "\r\033[2k" << std::flush;
-            std::cout << "Streetcred: " << i+1;
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            std::cout << "\r\033[2k" << std::flush;
+
+        double multiplier = accessoryManager.getcredmult();
+        double rewardvalue = c.rewardcred * multiplier;
+
+        long long reward = 0;
+        if(std::isfinite(multiplier) && std::isfinite(rewardvalue) &&
+           rewardvalue > 0){
+            if(rewardvalue >= static_cast<double>(
+                   std::numeric_limits<int>::max())){
+                reward = std::numeric_limits<int>::max();
+            }
+            else{
+                reward = static_cast<long long>(std::round(rewardvalue));
+            }
         }
-        streetcred += reward;
+        reward += accessoryManager.getrawcboost();
+
+        long long newcred = static_cast<long long>(streetcred) + reward;
+        newcred = std::max(0LL, std::min<long long>(
+            newcred, std::numeric_limits<int>::max()
+        ));
+
+        for(long long i = streetcred; i < newcred; i++){
+            std::cout << "\r\033[2K" << std::flush;
+            std::cout << "Streetcred: " << i + 1;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        streetcred = static_cast<int>(newcred);
         c.completed = true;
+
         savecontractprogress();
         accessoryManager.saveplayerdataAC(streetcred);
-        // saveplayerdata();
+
         _getch();
         std::cout << "\033[?25h";
-        return;
     };
+
     auto failscreen = [&](){
         clearterm();
+
         std::cout << Color::red << "Contract failed" << std::endl;
-        std::cout << "Streetcred: " << streetcred;
+        std::cout << Color::reset << "Streetcred: " << streetcred;
+
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        for(int i = streetcred;i>streetcred-10;i--){
+
+        int oldcred = streetcred;
+        int newcred = std::max(0, streetcred - 10);
+
+        for(int i = oldcred; i > newcred; i--){
             std::cout << "\r\033[2K" << std::flush;
-            std::cout << "Streetcred: " << i-1;
+            std::cout << "Streetcred: " << i - 1;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        streetcred = std::max(0,streetcred-10);
+
+        streetcred = newcred;
         accessoryManager.saveplayerdataAC(streetcred);
-        // saveplayerdata();
+
         _getch();
+        std::cout << "\033[?25h";
     };
+
     auto initgraphic = [&](){
         if(c.difficulty == "Easy"){
             timelimit = 60;
@@ -349,116 +429,154 @@ void ContractM::startContract(int id, AccessoryM& accessoryManager){
         else if(c.difficulty == "Hard"){
             timelimit = 45;
         }
+
         if(c.name == "Konpeki Plaza Heist"){
             timelimit = 50;
         }
-        
+
         std::cout << "=========================================" << std::endl;
         std::cout << Color::red << "Contract: " << c.name << std::endl;
         std::cout << "Jacking in";
-        for(int i=0;i<3;i++){
-            std::cout << ".";
-            std::cout << std::flush;
+
+        for(int i = 0; i < 3; i++){
+            std::cout << "." << std::flush;
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
-        std::cout << Color::reset << Color::green << std::endl << "Ready!" << Color::reset << std::endl;
+
+        std::cout << Color::reset << Color::green
+                  << std::endl << "Ready!" << Color::reset << std::endl;
+
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
         std::cout << "Decipher type: Caesar (Every letter is shifted to the right alphabetically by X amount)" << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
+
         std::cout << "Press anything to start Caesar Decipher" << std::endl;
         _getch();
-        clearterm();     
+
+        clearterm();
     };
-    
-    answerenc();
+
     initgraphic();
-    timelimit+= accessoryManager.getbonustime();
-    for(int i=3;i>0;i--){
-        std::cout << i;
+
+    long long totaltime = static_cast<long long>(timelimit)
+        + accessoryManager.getbonustime();
+    timelimit = static_cast<int>(std::min<long long>(
+        totaltime, std::numeric_limits<int>::max()
+    ));
+
+    for(int i = 3; i > 0; i--){
+        std::cout << i << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         clearterm();
     }
-    auto starttime = std::chrono::steady_clock::now();
-    std::cout << "\033[?251]";
-    std::cout << "Time :\n";
-    std::cout << "Encrypted message: \n";
-    std::cout << "Remaining lives: \n";
-    std::cout << "Input: \n";
-    while(true){
-        
 
+    auto starttime = std::chrono::steady_clock::now();
+
+    std::cout << "\033[?25l";
+    std::cout << "Time: " << timelimit << " seconds\n";
+    std::cout << "Encrypted Message (USE CAPS): " << c.encmessage << "\n";
+    std::cout << "Remaining lives: " << lives << "\n";
+    std::cout << "Input: " << std::flush;
+    while(true){
         auto now = std::chrono::steady_clock::now();
-        int elapsed = std::chrono::duration_cast<std::chrono::seconds>(now-starttime).count();
-        int remaining = timelimit-elapsed;
-        if(remaining<=0){
+
+        int elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+            now - starttime
+        ).count();
+
+        int remaining = timelimit - elapsed;
+
+        if(remaining <= 0){
             failscreen();
-            
-            
             return;
         }
-        std::cout << "\033[4A";
-        std::cout << "\033[2KTime:" << remaining << " seconds\n";
-        std::cout << "\033[2KEncrypted Message (USE CAPS)" << c.encmessage << "\n";
+
+        std::cout << "\r\033[4A";
+        std::cout << "\033[2KTime: " << remaining << " seconds\n";
+        std::cout << "\033[2KEncrypted Message (USE CAPS): " << c.encmessage << "\n";
         std::cout << "\033[2KRemaining lives: " << lives << "\n";
-        std::cout << Color::bold << "\033[2KInput: " << userans << "\n";
+        std::cout << "\033[2KInput: " << userans << std::flush;
+
         if(_kbhit()){
-            char key = _getch();
+            int key = _getch();
+
+            if(key == 0 || key == 224){
+                _getch();
+                continue;
+            }
+
             if(key == '\r'){
-                if(answer == userans){
+                if(userans == answer){
                     clearterm();
                     winscreen();
-                    break;
+                    return;
                 }
-                else if(answer != userans){
-                    lives--;
-                    userans.clear();
-                    if(lives==0){
-                        failscreen();
-                        return;
-                    }
+
+                lives--;
+                userans.clear();
+
+                if(lives <= 0){
+                    failscreen();
+                    return;
                 }
             }
-            else if (key == '\b'){
+            else if(key == '\b'){
                 if(!userans.empty()){
                     userans.pop_back();
                 }
             }
-            else if(key == ' ' || std::isalnum(static_cast<unsigned char>(key))){
-                userans +=key;
+            else if(std::isalnum(static_cast<unsigned char>(key))){
+                if(userans.size() < answer.size()){
+                    userans += static_cast<char>(key);
+                }
             }
         }
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(1)
-        );
-        
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 void ContractM::savecontractprogress(){
-    std::ifstream in("data/contracts.json");
-    if(!in.is_open()){
-        std::cout << "Could not read contracts.json";
-        return;
-    }
-    json data;
-    in >> data;
-    in.close();
-    for(auto& entry:data){
-        int id = entry.value("id",-1);
-            auto it = std::find_if(contracts.begin(),contracts.end(),[id](const Contract& c){
-                return c.id == id;
-            }
-        );
-        if(it != contracts.end()){
-            entry["completed"] = it->completed;
+    try{
+        std::ifstream in("data/contracts.json");
+        if(!in.is_open()){
+            std::cout << "Could not read contracts.json";
+            return;
         }
+        json data;
+        in >> data;
+        in.close();
+
+        if(!data.is_array()){
+            std::cout << "Could not save contract progress";
+            return;
+        }
+
+        for(auto& entry:data){
+            if(!entry.is_object()){
+                continue;
+            }
+            int id = entry.value("id",-1);
+                auto it = std::find_if(contracts.begin(),contracts.end(),[id](const Contract& c){
+                    return c.id == id;
+                }
+            );
+            if(it != contracts.end()){
+                entry["completed"] = it->completed;
+            }
+        }
+        std::ofstream out("data/contracts.json");
+        if(!out.is_open()){
+            std::cout << "Could not write to contracts.json";
+            return;
+        }
+        out << data.dump(4);
+        out.close();
     }
-    std::ofstream out("data/contracts.json");
-    if(!out.is_open()){
-        std::cout << "Could not write to contracts.json";
-        return;
+    catch(const std::exception& e){
+        std::cout << "Could not save contract progress: "
+                  << e.what() << std::endl;
     }
-    out << data.dump(4);
-    out.close();
 }
 
 void browseAccessories(AccessoryM& manager){
@@ -539,72 +657,142 @@ void browseAccessories(AccessoryM& manager){
 }
 bool AccessoryM::loaditemlist(){
     std::ifstream file("data/items.json");
+
     if(!file.is_open()){
-        std::cout << "Couldn't open items.json";
+        std::cerr << "Couldn't open items.json\n";
         return false;
     }
 
-    json data;
     try{
-        file >>data;
+        json data;
+        file >> data;
+
+        if(!data.is_array()){
+            std::cerr << "items.json must contain an array\n";
+            return false;
+        }
+
+        std::vector<Accessory> loadedItems;
+
+        for(const auto& item : data){
+            if(!item.is_object()){
+                throw std::runtime_error("Item must be an object");
+            }
+
+            Accessory a;
+
+            a.id = item.at("id").get<int>();
+            a.name = item.at("name").get<std::string>();
+            a.description = item.at("Description").get<std::string>();
+            a.price = item.at("price").get<int>();
+            a.bonuslives = item.at("livebonus").get<int>();
+            a.bonustime = item.at("timebonus").get<int>();
+            a.credmultiplier = item.at("credmult").get<double>();
+            a.rawcredboost = item.at("rawcredbonus").get<int>();
+
+            if(a.price < 0 || a.bonuslives < 0 ||
+               a.bonustime < 0 || a.rawcredboost < 0 ||
+               !std::isfinite(a.credmultiplier) ||
+               a.credmultiplier < 0){
+                throw std::runtime_error("Invalid accessory values");
+            }
+
+            loadedItems.push_back(a);
+        }
+
+        itemlist = std::move(loadedItems);
+        return true;
     }
-    catch(const json::exception& e){
-        std::cout << "Items.json invalid" << e.what();
+    catch(const std::exception& e){
+        std::cerr << "Invalid items.json: "
+                  << e.what() << '\n';
         return false;
     }
-    if(!data.is_array()){
-        std::cout << "Items.json must contain arrauy";
-        return false;
-    }
-    itemlist.clear();
-    for(const auto& item: data){
-        Accessory acesory;
-
-        acesory.id = item.at("id").get<int>();
-        acesory.name = item.at("name").get<std::string>();
-        acesory.description = item.at("Description").get<std::string>();
-        acesory.price = item.at("price").get<int>();
-        acesory.bonuslives = item.at("livebonus").get<int>();
-        acesory.bonustime = item.at("timebonus").get<int>();
-        acesory.credmultiplier = item.at("credmult").get<float>();
-        acesory.rawcredboost = item.at("rawcredbonus").get<int>();
-
-        itemlist.push_back(acesory);
-    }
-    file.close();
-    return true;
-
 }
 bool AccessoryM::loadplayerlist(int& streetcred){
     std::ifstream file("data/playerdata.json");
+
+   
     if(!file.is_open()){
         ownedaccessories.clear();
+
         for(const auto& item : itemlist){
             ownedaccessories[item.id] = false;
         }
+
         return saveplayerdataAC(streetcred);
     }
-    json data;
+
     try{
+        json data;
         file >> data;
 
+        if(!data.is_object()){
+            throw std::runtime_error(
+                "Player data must be a JSON object"
+            );
+        }
+
+        int loadedStreetcred = streetcred;
+
+        if(data.contains("streetcred")){
+            if(!data["streetcred"].is_number_integer()){
+                throw std::runtime_error(
+                    "Streetcred must be an integer"
+                );
+            }
+
+            long long value =
+                data["streetcred"].get<long long>();
+
+            if(value < 0 || value > INT_MAX){
+                throw std::runtime_error(
+                    "Streetcred is out of range"
+                );
+            }
+
+            loadedStreetcred = static_cast<int>(value);
+        }
+
+        if(data.contains("items") &&
+           !data["items"].is_object()){
+            throw std::runtime_error(
+                "Items must be a JSON object"
+            );
+        }
+
+        std::unordered_map<int, bool> loadedOwnership;
+
+        for(const auto& item : itemlist){
+            std::string id = std::to_string(item.id);
+            bool owned = false;
+
+            if(data.contains("items") &&
+               data["items"].contains(id)){
+
+                if(!data["items"][id].is_boolean()){
+                    throw std::runtime_error(
+                        "Accessory ownership must be true or false"
+                    );
+                }
+
+                owned = data["items"][id].get<bool>();
+            }
+
+            loadedOwnership[item.id] = owned;
+        }
+
+      
+        streetcred = loadedStreetcred;
+        ownedaccessories = std::move(loadedOwnership);
+
+        return true;
     }
-    catch (const json::exception& e){
-        std::cout << "Invalid playerdata.json: " << e.what();
+    catch(const std::exception& e){
+        std::cerr << "Invalid playerdata.json: "
+                  << e.what() << '\n';
         return false;
     }
-    file.close();
-    streetcred = data.value("streetcred", 30);
-    ownedaccessories.clear();
-    for(const auto& item : itemlist){
-        std::string id = std::to_string(item.id);
-        bool owned=false;
-        if(data.contains("items")&& data["items"].is_object()){
-            owned = data["items"].value(id,false);
-        }
-        ownedaccessories[item.id] = owned;
-    }
-    return true;
 }
 bool AccessoryM::saveplayerdataAC(int streetcred){
     json data;
@@ -628,48 +816,59 @@ bool AccessoryM::ownsaccessory(int id) const{
     return it != ownedaccessories.end() && it->second;
 
 }
-AccessoryM::Purchaseresult AccessoryM::purchaseaccessory(int id, int& streetcred){
-    auto it = std::find_if(itemlist.begin(), itemlist.end(),[id](const Accessory& a){
+AccessoryM::Purchaseresult AccessoryM::purchaseaccessory(
+    int id, int& streetcred
+){
+    auto it = std::find_if(
+        itemlist.begin(),
+        itemlist.end(),
+        [id](const Accessory& a){
             return a.id == id;
         }
     );
-    if (it== itemlist.end()){
+
+    if(it == itemlist.end())
         return Purchaseresult::Notfound;
-    }
-    if(ownsaccessory(id)){
+
+    if(ownsaccessory(id))
         return Purchaseresult::Alreadyowned;
-    }
-    if(streetcred < it->price){
+
+    if(streetcred < it->price || it->price < 0)
         return Purchaseresult::Toopoor;
-    }
+
     streetcred -= it->price;
     ownedaccessories[id] = true;
 
     if(!saveplayerdataAC(streetcred)){
         streetcred += it->price;
-        ownedaccessories[id] =false;
+        ownedaccessories[id] = false;
         return Purchaseresult::Savefail;
     }
+
     return Purchaseresult::Success;
 }
 int AccessoryM::getbonuslives() const{
-    int bonus =0;
+    long long bonus = 0;
     for(const auto& item : itemlist){
         if(ownsaccessory(item.id)){
             bonus += item.bonuslives;
         }
     }
-    return bonus;
+    return static_cast<int>(std::min<long long>(
+        bonus, std::numeric_limits<int>::max()
+    ));
 }
 int AccessoryM::getbonustime() const{
-    int bonus =0;
+    long long bonus = 0;
     for(const auto& item :itemlist){
         if(ownsaccessory(item.id)){
             bonus += item.bonustime;
 
         }
     }
-    return bonus;
+    return static_cast<int>(std::min<long long>(
+        bonus, std::numeric_limits<int>::max()
+    ));
 }
 double AccessoryM::getcredmult() const{
     double multiplier = 1.0;
@@ -681,19 +880,18 @@ double AccessoryM::getcredmult() const{
     return multiplier;
 }
 int AccessoryM::getrawcboost() const{
-    int bonus = 0;
+    long long bonus = 0;
     for(const auto& item : itemlist){
         if(ownsaccessory(item.id)){
             bonus +=item.rawcredboost;
         }
     }
-    return bonus;
+    return static_cast<int>(std::min<long long>(
+        bonus, std::numeric_limits<int>::max()
+    ));
 }
 int main(){
-    std::cout << "Loaded:" << std::filesystem::current_path() << std::endl;
-    std::cout << "Press any button to enter startmenu" << std::endl;
-
-    _getch();
+    
     ContractM manager;
     AccessoryM accessoryManager;
     accessoryManager.loaditemlist();

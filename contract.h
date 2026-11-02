@@ -1,5 +1,6 @@
 #pragma once
 #include <bits/stdc++.h>
+
 class Contract{
     public: int id;
         std::string name;
@@ -16,7 +17,7 @@ class AccessoryM;
 class ContractM{
     public:
         std::vector<Contract> contracts;
-        void loadContract();
+        bool loadContract();
         void browseContract(int streetcred);
         void startContract(int id, AccessoryM& accessoryManager);
         void savecontractprogress();

@@ -1,6 +1,9 @@
+#pragma once
 #include <bits/stdc++.h>
 #include "json.hpp"
 #include <string>
+class ContractM;
+class AccessoryM;
 using json = nlohmann::json;
 namespace Color {
     const std::string reset = "\033[0m";
@@ -16,7 +19,33 @@ namespace Color {
 
     const std::string bold = "\033[1m";
 }
-void startmenu();
+
+inline int caesarNormalizeShift(int shift){
+    shift %= 26;
+    if(shift < 0){
+        shift += 26;
+    }
+    return shift;
+}
+
+inline char caesarEncodeChar(char ch, int shift){
+    shift = caesarNormalizeShift(shift);
+
+    if(ch >= 'A' && ch <= 'Z'){
+        return static_cast<char>((ch - 'A' + shift) % 26 + 'A');
+    }
+    if(ch >= 'a' && ch <= 'z'){
+        return static_cast<char>((ch - 'a' + shift) % 26 + 'a');
+    }
+    return ch;
+}
+
+inline char caesarDecodeChar(char ch, int shift){
+    shift = caesarNormalizeShift(shift);
+    return caesarEncodeChar(ch, shift == 0 ? 0 : 26 - shift);
+}
+
+void startmenu(ContractM& manager, AccessoryM& accessoryManager);
 void play();
 void levelselect();
 void setting();
