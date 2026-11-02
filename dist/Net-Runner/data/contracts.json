@@ -1,0 +1,30 @@
+[
+    {
+        "cipher": {
+            "encrypted_message": "IIGB",
+            "shift": 2,
+            "type": "caesar"
+        },
+        "completed": false,
+        "description": "Too scared for corpos",
+        "difficulty": "Easy",
+        "id": 1,
+        "name": "Petty Burglar",
+        "required_cred": 0,
+        "reward_cred": 10
+    },
+    {
+        "cipher": {
+            "encrypted_message": "HKZGFMGA",
+            "shift": 2,
+            "type": "caesar"
+        },
+        "completed": false,
+        "description": "Rob a poor chooms bank account",
+        "difficulty": "Easy",
+        "id": 2,
+        "name": "Firewall",
+        "required_cred": 10,
+        "reward_cred": 20
+    }
+]
