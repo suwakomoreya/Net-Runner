@@ -5,7 +5,7 @@
             "shift": 2,
             "type": "caesar"
         },
-        "completed": false,
+        "completed": true,
         "description": "Too scared for corpos",
         "difficulty": "Easy",
         "id": 1,
