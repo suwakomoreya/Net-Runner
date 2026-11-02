@@ -301,10 +301,10 @@ void ContractM::startContract(int id){
     };
     auto initgraphic = [&](){
         if(c.difficulty == "Easy"){
-            timelimit = 10;
+            timelimit = 60;
         }
         else if(c.difficulty == "Medium"){
-            timelimit = 60;
+            timelimit = 45;
         }
         else if(c.difficulty == "Hard"){
             timelimit = 45;
