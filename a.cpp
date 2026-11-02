@@ -17,7 +17,7 @@ void loadContract(){
             c["difficulty"],
             c["requiredcred"],
             c["rewardcred"],
-            
+            c["completed"],
             c["cipherType"],
             c["encmessage"],
             c["shift"]

@@ -1,44 +1,44 @@
 [
     {
-        "id": 1,
-        "name": "Petty Burglar",
+        "cipher": {
+            "encrypted_message": "IIGB",
+            "shift": 2,
+            "type": "caesar"
+        },
+        "completed": true,
         "description": "Too scared for corpos",
         "difficulty": "Easy",
+        "id": 1,
+        "name": "Petty Burglar",
         "required_cred": 0,
-        "reward_cred": 10,
-
-        "cipher":{
-            "type": "caesar",
-            "encrypted_message": "IIGB",
-            "shift": 2
-        }
+        "reward_cred": 10
     },
     {
-        "id": 2,
-        "name": "Firewall",
+        "cipher": {
+            "encrypted_message": "HKZGFMGA",
+            "shift": 2,
+            "type": "caesar"
+        },
+        "completed": true,
         "description": "Rob a poor chooms bank account",
         "difficulty": "Easy",
-        "required_cred":10,
-        "reward_cred": 20,
-
-        "cipher":{
-            "type": "caesar",
-            "encrypted_message": "IlahgNhb",
-            "shift": 2
-        }
+        "id": 2,
+        "name": "Firewall",
+        "required_cred": 10,
+        "reward_cred": 20
     },
     {
-        "id": 3,
-        "name": "Secured Locker",
+        "cipher": {
+            "encrypted_message": "IlahgNhb",
+            "shift": 2,
+            "type": "caesar"
+        },
+        "completed": false,
         "description": "Snatching a relic",
         "difficulty": "Easy",
-        "required_cred":40,
-        "reward_cred": 30,
-
-        "cipher":{
-            "type": "caesar",
-            "encrypted_message": "IlahgNhb",
-            "shift": 2
-        }
+        "id": 3,
+        "name": "Secured Locker",
+        "required_cred": 40,
+        "reward_cred": 30
     }
 ]

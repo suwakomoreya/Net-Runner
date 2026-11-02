@@ -25,7 +25,7 @@ void clearterm(){
 
 void startmenu(ContractM& manager){
     std::vector<Contract>& contracts = manager.contracts;
-    Contract& c = contracts[selectedMid];
+    
     
     std::string menutext[] ={
         "Select a contract",
@@ -86,10 +86,13 @@ void startmenu(ContractM& manager){
                     selectedMid =0;
                     
                 }
+                
                 break;
+                
             case 1: //contracts
                 clearterm();
                 manager.browseContract(streetcred);
+                selected =0;
                 break;
             case 2: //gear
                 break;
@@ -127,14 +130,32 @@ void startmenu(ContractM& manager){
         }
     }
 }
-void play(){}
 void cselect(){
     int selected=1;
 }
-void userdata(){
-    int selected=1;
+void saveplayerdata(){
+    std::ofstream file("data/playerdata.json");
+    if(!file.is_open()){
+        std::cout << "Can't save player data :(";
+        return;
+    }
+    json data;
+    data["streetcred"] = streetcred;
+    file << data.dump(4);
+    file.close();
 }
-
+void loadplayerdata(){
+    std::ifstream file("data/playerdata.json");
+    if(!file.is_open()){
+        streetcred = 10;
+        saveplayerdata();
+        return;
+    }
+    json data;
+    file >> data;
+    streetcred = data.value("streetcred", 10);
+    file.close();
+}
 void ContractM::loadContract(){
     std::ifstream file("data/contracts.json");
     if(!file.is_open()){
@@ -155,7 +176,7 @@ void ContractM::loadContract(){
         contract.difficulty = c["difficulty"];
         contract.requiredcred = c["required_cred"];
         contract.rewardcred = c["reward_cred"];
-
+        contract.completed = c.value("completed",false);
         contract.cipherType = c["cipher"]["type"];
         contract.encmessage = c["cipher"]["encrypted_message"];
         contract.shift = c["cipher"]["shift"];
@@ -195,12 +216,19 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
             Contract& c = contracts[i];
 
             std::string cdiff = c.difficulty == "Easy" ? Color::green : c.difficulty == "Medium" ? Color::yellow : Color::purple;
-
+            
             if(i==selected){
                 std::cout << Color::white << "> " << c.name << Color::reset;
                 check(c);
                 std::cout << Color::white << "      " << "Contract Info:" << c.description << Color::reset << std::endl;
                 std::cout << Color::white << "      " << "Difficulty: "<< cdiff << c.difficulty << Color::reset << std::endl;
+                std::cout << Color::white << "      " << "Status: ";
+                if(c.completed == true){
+                    std::cout << Color::green << "Completed" << Color::reset << std::endl;
+                }
+                else
+                    std::cout << Color::red << "Incomplete" << Color::reset << std::endl;
+
                 std::cout << "      " << "Reward Credit: " << c.rewardcred << std::endl;
             }
             else{
@@ -282,6 +310,10 @@ void ContractM::startContract(int id){
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             std::cout << "\r\033[2k" << std::flush;
         }
+        streetcred += c.rewardcred;
+        c.completed = true;
+        savecontractprogress();
+        saveplayerdata();
         _getch();
         std::cout << "\033[?25h";
         return;
@@ -297,6 +329,7 @@ void ContractM::startContract(int id){
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         streetcred = std::max(0,streetcred-10);
+        saveplayerdata();
         _getch();
     };
     auto initgraphic = [&](){
@@ -392,14 +425,41 @@ void ContractM::startContract(int id){
         
     }
 }
+void ContractM::savecontractprogress(){
+    std::ifstream in("data/contracts.json");
+    if(!in.is_open()){
+        std::cout << "Could not read contracts.json";
+        return;
+    }
+    json data;
+    in >> data;
+    in.close();
+    for(auto& entry:data){
+        int id = entry.value("id",-1);
+            auto it = std::find_if(contracts.begin(),contracts.end(),[id](const Contract& c){
+                return c.id == id;
+            }
+        );
+        if(it != contracts.end()){
+            entry["completed"] = it->completed;
+        }
+    }
+    std::ofstream out("data/contracts.json");
+    if(!out.is_open()){
+        std::cout << "Could not write to contracts.json";
+        return;
+    }
+    out << data.dump(4);
+    out.close();
+}
 int main(){
     std::cout << "Loaded:" << std::filesystem::current_path() << std::endl;
-    _getch();
+    std::cout << "Press any button to enter startmenu" << std::endl;
 
+    _getch();
     ContractM manager;
     manager.loadContract();
-    std::cout << manager.contracts.size() << std::endl;
-    _getch();
+    loadplayerdata();
     startmenu(manager);
     return 0;
 }
