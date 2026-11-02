@@ -23,7 +23,7 @@ void clearterm(){
         system("clear");
     #endif
 };
-
+void browseAccessories(AccessoryM& manager);
 void startmenu(ContractM& manager, AccessoryM& accessoryManager){
     std::vector<Contract>& contracts = manager.contracts;
     
@@ -135,7 +135,7 @@ void startmenu(ContractM& manager, AccessoryM& accessoryManager){
 void cselect(){
     int selected=1;
 }
-void saveplayerdata(){
+/** void saveplayerdata(){
     std::ofstream file("data/playerdata.json");
     if(!file.is_open()){
         std::cout << "Can't save player data :(";
@@ -145,8 +145,8 @@ void saveplayerdata(){
     data["streetcred"] = streetcred;
     file << data.dump(4);
     file.close();
-}
-void loadplayerdata(){
+} */
+/** void loadplayerdata(){
     std::ifstream file("data/playerdata.json");
     if(!file.is_open()){
         streetcred = 10;
@@ -158,7 +158,7 @@ void loadplayerdata(){
     streetcred = data.value("streetcred", 10);
     file.close();
 }
-
+*/
 
 void ContractM::loadContract(){
     std::ifstream file("data/contracts.json");
@@ -319,7 +319,7 @@ void ContractM::startContract(int id, AccessoryM& accessoryManager){
         c.completed = true;
         savecontractprogress();
         accessoryManager.saveplayerdataAC(streetcred);
-        saveplayerdata();
+        // saveplayerdata();
         _getch();
         std::cout << "\033[?25h";
         return;
@@ -336,7 +336,7 @@ void ContractM::startContract(int id, AccessoryM& accessoryManager){
         }
         streetcred = std::max(0,streetcred-10);
         accessoryManager.saveplayerdataAC(streetcred);
-        saveplayerdata();
+        // saveplayerdata();
         _getch();
     };
     auto initgraphic = [&](){
@@ -369,9 +369,10 @@ void ContractM::startContract(int id, AccessoryM& accessoryManager){
         _getch();
         clearterm();     
     };
-    timelimit+= accessoryManager.getbonustime();
+    
     answerenc();
     initgraphic();
+    timelimit+= accessoryManager.getbonustime();
     for(int i=3;i>0;i--){
         std::cout << i;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -531,7 +532,7 @@ void browseAccessories(AccessoryM& manager){
                 _getch();
                 break;
             }
-            case27: 
+            case 27: 
                 return;
             }  
     }
@@ -628,13 +629,17 @@ bool AccessoryM::ownsaccessory(int id) const{
 
 }
 AccessoryM::Purchaseresult AccessoryM::purchaseaccessory(int id, int& streetcred){
-    auto it=std::find_if(itemlist.begin(),itemlist.end(),[id](const Accessory& a){
-        return a.id == id;
-    });
+    auto it = std::find_if(itemlist.begin(), itemlist.end(),[id](const Accessory& a){
+            return a.id == id;
+        }
+    );
     if (it== itemlist.end()){
         return Purchaseresult::Notfound;
     }
     if(ownsaccessory(id)){
+        return Purchaseresult::Alreadyowned;
+    }
+    if(streetcred < it->price){
         return Purchaseresult::Toopoor;
     }
     streetcred -= it->price;
@@ -643,8 +648,9 @@ AccessoryM::Purchaseresult AccessoryM::purchaseaccessory(int id, int& streetcred
     if(!saveplayerdataAC(streetcred)){
         streetcred += it->price;
         ownedaccessories[id] =false;
-        return Purchaseresult::Success;
+        return Purchaseresult::Savefail;
     }
+    return Purchaseresult::Success;
 }
 int AccessoryM::getbonuslives() const{
     int bonus =0;
@@ -693,7 +699,7 @@ int main(){
     accessoryManager.loaditemlist();
     accessoryManager.loadplayerlist(streetcred);
     manager.loadContract();
-    loadplayerdata();
+    // loadplayerdata();
     startmenu(manager, accessoryManager);
     return 0;
 }

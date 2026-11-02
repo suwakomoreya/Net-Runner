@@ -12,6 +12,7 @@ class Contract{
         std::string encmessage;
         int shift;
 };
+class AccessoryM;
 class ContractM{
     public:
         std::vector<Contract> contracts;
@@ -20,4 +21,3 @@ class ContractM{
         void startContract(int id, AccessoryM& accessoryManager);
         void savecontractprogress();
 };
-class AccessoryM;

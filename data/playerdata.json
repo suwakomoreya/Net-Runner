@@ -1,8 +1,8 @@
 {
-    "streetcred": 60,
     "items": {
-        "1": false,
-        "2": false,
+        "1": true,
+        "2": true,
         "3": false
-    }
+    },
+    "streetcred": 0
 }
