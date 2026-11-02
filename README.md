@@ -14,3 +14,18 @@ msys2 ucrt64 gcc c++ compiler
 3. compile `g++ main.cpp -o CaliCityGlaze.exe -lcurl`
 4. run application `./main.exe
 
+HOW TO RUN
+----------
+Double-click Net-Runner.exe (Windows x64).
+Keep Net-Runner.exe, the included DLLs, and the data folder together in
+the same directory.
+
+CONTROLS
+--------
+Up / Down     Navigate menus
+Enter         Select / submit answer
+Esc           Back
+Backspace     Delete a character
+Open "Browse available contracts", pick a job, then choose "Start cipher".
+Decrypt the Caesar cipher and type the answer before the timer runs out.
+Answers are case-sensitive; the game asks for CAPS.
