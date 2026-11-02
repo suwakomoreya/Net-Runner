@@ -8,6 +8,7 @@
 #include <filesystem>
 #include "header.h"
 #include "contract.h"
+#include "accessory.h"
 using json = nlohmann::json;
 //libs
 int streetcred = 30;
@@ -451,6 +452,154 @@ void ContractM::savecontractprogress(){
     }
     out << data.dump(4);
     out.close();
+}
+
+bool AccessoryM::loaditemlist(){
+    std::ifstream file("data/items.json");
+    if(!file.is_open()){
+        std::cout << "Couldn't open items.json";
+        return false;
+    }
+
+    json data;
+    try{
+        file >>data;
+    }
+    catch(const json::exception& e){
+        std::cout << "Items.json invalid" << e.what();
+        return false;
+    }
+    if(!data.is_array()){
+        std::cout << "Items.json must contain arrauy";
+        return false;
+    }
+    itemlist.clear();
+    for(const auto& item: data){
+        Accessory acesory;
+
+        acesory.id = item.at("id").get<int>();
+        acesory.name = item.at("name").get<std::string>();
+        acesory.description = item.at("Description").get<std::string>();
+        acesory.price = item.at("price").get<int>();
+        acesory.bonuslives = item.at("livebonus").get<int>();
+        acesory.bonustime = item.at("timebonus").get<int>();
+        acesory.credmultiplier = item.at("credmult").get<float>();
+        acesory.rawcredboost = item.at("rawcredbonus").get<int>();
+
+        itemlist.push_back(acesory);
+    }
+    file.close();
+    return true;
+
+}
+bool AccessoryM::loadplayerlist(int& streetcred){
+    std::ifstream file("data/playerdata.json");
+    if(!file.is_open()){
+        ownedaccessories.clear();
+        for(const auto& item : itemlist){
+            ownedaccessories[item.id] = false;
+        }
+        return saveplayerdataAC(streetcred);
+    }
+    json data;
+    try{
+        file >> data;
+
+    }
+    catch (const json::exception& e){
+        std::cout << "Invalid playerdata.json: " << e.what();
+        return false;
+    }
+    file.close();
+    streetcred = data.value("streetcred", 30);
+    ownedaccessories.clear();
+    for(const auto& item : itemlist){
+        std::string id = std::to_string(item.id);
+        bool owned=false;
+        if(data.contains("items")&& data["items"].is_object()){
+            owned = data["items"].value(id,false);
+        }
+        ownedaccessories[item.id] = owned;
+    }
+    return true;
+}
+bool AccessoryM::saveplayerdataAC(int streetcred){
+    json data;
+    data["streetcred"] = streetcred;
+    data["items"] = json::object();
+    for(const auto& item : itemlist){
+        data["items"][std::to_string(item.id)]=ownsaccessory(item.id);
+
+    }
+    std::ofstream file("data/playerdata.json");
+    if(!file.is_open()){
+        std::cout << "Couldn't save playerdata.json";
+        return false;
+    }
+    file << data.dump(4);
+    file.close();
+    return true;
+}
+bool AccessoryM::ownsaccessory(int id) const{
+    auto it = ownedaccessories.find(id);
+    return it != ownedaccessories.end() && it->second;
+
+}
+AccessoryM::Purchaseresult AccessoryM::purchaseaccessory(int id, int& streetcred){
+    auto it=std::find_if(itemlist.begin(),itemlist.end(),[id](const Accessory& a){
+        return a.id == id;
+    });
+    if (it== itemlist.end()){
+        return Purchaseresult::Notfound;
+    }
+    if(ownsaccessory(id)){
+        return Purchaseresult::Toopoor;
+    }
+    streetcred -= it->price;
+    ownedaccessories[id] = true;
+
+    if(!saveplayerdataAC(streetcred)){
+        streetcred += it->price;
+        ownedaccessories[id] =false;
+        return Purchaseresult::Success;
+    }
+}
+int AccessoryM::getbonuslives() const{
+    int bonus =0;
+    for(const auto& item : itemlist){
+        if(ownsaccessory(item.id)){
+            bonus += item.bonuslives;
+        }
+    }
+    return bonus;
+}
+int AccessoryM::getbonustime() const{
+    int bonus =0;
+    for(const auto& item :itemlist){
+        if(ownsaccessory(item.id)){
+            bonus += item.bonustime;
+
+        }
+    }
+    return bonus;
+}
+double AccessoryM::getcredmult() const{
+    double multiplier = 1.0;
+    for(const auto& item : itemlist){
+        if(ownsaccessory(item.id)){
+            multiplier *= item.credmultiplier;
+        }
+    } 
+    return multiplier;
+}
+int AccessoryM::getrawcboost() const{
+    int bonus = 0;
+    for(const auto& item : itemlist){
+        if(ownsaccessory(item.id)){
+            bonus +=item.rawcredboost;
+        }
+    }
+    return bonus;
 }
 int main(){
     std::cout << "Loaded:" << std::filesystem::current_path() << std::endl;
