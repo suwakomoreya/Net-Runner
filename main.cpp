@@ -24,7 +24,7 @@ void clearterm(){
     #endif
 };
 
-void startmenu(ContractM& manager){
+void startmenu(ContractM& manager, AccessoryM& accessoryManager){
     std::vector<Contract>& contracts = manager.contracts;
     
     
@@ -82,7 +82,7 @@ void startmenu(ContractM& manager){
             case 0: //select contract
                 if(missionselected == true){
                     clearterm();
-                    manager.startContract(selectedMid);
+                    manager.startContract(selectedMid,accessoryManager);
                     missionselected = false;
                     selectedMid =0;
                     
@@ -96,6 +96,7 @@ void startmenu(ContractM& manager){
                 selected =0;
                 break;
             case 2: //gear
+                browseAccessories(accessoryManager);
                 break;
             case 3: //user data
                 break;
@@ -157,6 +158,8 @@ void loadplayerdata(){
     streetcred = data.value("streetcred", 10);
     file.close();
 }
+
+
 void ContractM::loadContract(){
     std::ifstream file("data/contracts.json");
     if(!file.is_open()){
@@ -280,7 +283,7 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
     }
     _getch();
 }
-void ContractM::startContract(int id){
+void ContractM::startContract(int id, AccessoryM& accessoryManager){
     auto It = std::find_if(contracts.begin(),contracts.end(),[id](const Contract& c){
         return c.id == id;
     });
@@ -291,7 +294,7 @@ void ContractM::startContract(int id){
     }
     Contract& c = *It;
     int timelimit =30;
-    int lives=3;
+    int lives=3 + accessoryManager.getbonuslives();
     std::string answer = c.encmessage;
     std::string userans;
 
@@ -305,15 +308,17 @@ void ContractM::startContract(int id){
         std::cout << "Contract '" << c.name << "' completed." << std::endl;
         std::cout << "Streetcred: " << streetcred;
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        for(int i=streetcred; i<streetcred + (c.rewardcred);i++){
+        int reward = std::round(c.rewardcred * accessoryManager.getcredmult()); 
+        for(int i=streetcred; i<streetcred + reward;i++){
             std::cout << "\r\033[2k" << std::flush;
             std::cout << "Streetcred: " << i+1;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             std::cout << "\r\033[2k" << std::flush;
         }
-        streetcred += c.rewardcred;
+        streetcred += reward;
         c.completed = true;
         savecontractprogress();
+        accessoryManager.saveplayerdataAC(streetcred);
         saveplayerdata();
         _getch();
         std::cout << "\033[?25h";
@@ -330,6 +335,7 @@ void ContractM::startContract(int id){
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         streetcred = std::max(0,streetcred-10);
+        accessoryManager.saveplayerdataAC(streetcred);
         saveplayerdata();
         _getch();
     };
@@ -363,7 +369,7 @@ void ContractM::startContract(int id){
         _getch();
         clearterm();     
     };
-    
+    timelimit+= accessoryManager.getbonustime();
     answerenc();
     initgraphic();
     for(int i=3;i>0;i--){
@@ -454,6 +460,82 @@ void ContractM::savecontractprogress(){
     out.close();
 }
 
+void browseAccessories(AccessoryM& manager){
+    if(manager.itemlist.empty()){
+        std::cout << "Nothin in shop";
+        _getch();
+        return;
+    }
+    int selected=0;
+    int count = manager.itemlist.size();
+    while(true){
+        clearterm();
+        std::cout << "============================" << std::endl;
+        std::cout << "    UPGRADES/ACCESSORIES"  << std::endl;
+        std::cout << "----------------------------" << std::endl;
+        std::cout << "Streetcred: " << streetcred << std::endl;
+        for(int i=0;i<count;i++){
+            const Accessory& item = manager.itemlist[i];
+            std::cout << (i == selected ? "> ": " ");
+            std::cout << item.name;
+            if(manager.ownsaccessory(item.id)){
+                std::cout << " [Owned]";
+            }
+            else{
+                std::cout << " [" << item.price << " SC]";
+            }
+            std::cout << std::endl;
+            if(i ==selected){
+                std::cout << "  " << item.description << std::endl;
+            }
+        }
+        std::cout << "ESC: Return" << std::endl;
+        int key = _getch();
+        if(key==0 || key == 224){
+            key = _getch();
+        }
+        switch(key){
+            case 72:
+                selected--;
+                if(selected<0){
+                    selected = count-1;
+
+                }
+                break;
+            case 80:
+                selected++;
+                if(selected>=count){
+                    selected =0;
+                }
+                break;
+            case 13:{
+                auto result = manager.purchaseaccessory(manager.itemlist[selected].id,streetcred);
+                clearterm();
+                switch(result){
+                    case AccessoryM::Purchaseresult::Success:
+                        std::cout << "Purchased";
+                        break;
+                    case AccessoryM::Purchaseresult::Alreadyowned:
+                        std::cout << "Already owned";
+                        break;
+                    case AccessoryM::Purchaseresult::Toopoor:
+                        std::cout << "You're too POOR!";
+                        break;
+                    case AccessoryM::Purchaseresult::Notfound:
+                        std::cout << "No accessory???";
+                        break;
+                    case AccessoryM::Purchaseresult::Savefail:
+                        std::cout << "Purchase was not saved";
+                        break;
+                } 
+                _getch();
+                break;
+            }
+            case27: 
+                return;
+            }  
+    }
+}
 bool AccessoryM::loaditemlist(){
     std::ifstream file("data/items.json");
     if(!file.is_open()){
@@ -607,8 +689,11 @@ int main(){
 
     _getch();
     ContractM manager;
+    AccessoryM accessoryManager;
+    accessoryManager.loaditemlist();
+    accessoryManager.loadplayerlist(streetcred);
     manager.loadContract();
     loadplayerdata();
-    startmenu(manager);
+    startmenu(manager, accessoryManager);
     return 0;
 }
