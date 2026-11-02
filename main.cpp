@@ -10,7 +10,7 @@
 #include "contract.h"
 using json = nlohmann::json;
 //libs
-int streetcred = 10;
+int streetcred = 30;
 int selectedMid =0;
 bool laststage = false, missionselected = false;
 
@@ -82,7 +82,9 @@ void startmenu(ContractM& manager){
                 if(missionselected == true){
                     clearterm();
                     manager.startContract(selectedMid);
-                    break;
+                    missionselected = false;
+                    selectedMid =0;
+                    
                 }
                 break;
             case 1: //contracts
@@ -250,17 +252,56 @@ void ContractM::browseContract(int streetcred){ //NEED to fix this. currently ca
     _getch();
 }
 void ContractM::startContract(int id){
-    Contract& c = contracts[selectedMid-1];
-    int timelimit;
-    std::string answer;
+    auto It = std::find_if(contracts.begin(),contracts.end(),[id](const Contract& c){
+        return c.id == id;
+    });
+    if(It == contracts.end()){
+        std::cout << "Contract id can't be found: " << id << "\n";
+        _getch();
+        return;
+    }
+    Contract& c = *It;
+    int timelimit =30;
+    int lives=3;
+    std::string answer = c.encmessage;
+    std::string userans;
+
     auto answerenc = [&](){
         for(int i = 0;i< (c.encmessage).size(); i++){
-
+            answer[i] = (c.encmessage[i] - 'A' - c.shift +26) % 26 + 'A';
         }
+    };
+    auto winscreen = [&](){
+        std::cout << "=================================" << std::endl;
+        std::cout << "Contract '" << c.name << "' completed." << std::endl;
+        std::cout << "Streetcred: " << streetcred;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        for(int i=streetcred; i<streetcred + (c.rewardcred);i++){
+            std::cout << "\r\033[2k" << std::flush;
+            std::cout << "Streetcred: " << i+1;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::cout << "\r\033[2k" << std::flush;
+        }
+        _getch();
+        std::cout << "\033[?25h";
+        return;
+    };
+    auto failscreen = [&](){
+        clearterm();
+        std::cout << Color::red << "Contract failed" << std::endl;
+        std::cout << "Streetcred: " << streetcred;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        for(int i = streetcred;i>streetcred-10;i--){
+            std::cout << "\r\033[2K" << std::flush;
+            std::cout << "Streetcred: " << i-1;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        streetcred = std::max(0,streetcred-10);
+        _getch();
     };
     auto initgraphic = [&](){
         if(c.difficulty == "Easy"){
-            timelimit = 90;
+            timelimit = 10;
         }
         else if(c.difficulty == "Medium"){
             timelimit = 60;
@@ -285,13 +326,71 @@ void ContractM::startContract(int id){
         std::cout << "Decipher type: Caesar (Every letter is shifted to the right alphabetically by X amount)" << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         std::cout << "Press anything to start Caesar Decipher" << std::endl;
-        _getch();     
+        _getch();
+        clearterm();     
     };
-    auto starttime = std::chrono::steady_clock::now();
-
-
-    initgraphic();
     
+    answerenc();
+    initgraphic();
+    for(int i=3;i>0;i--){
+        std::cout << i;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        clearterm();
+    }
+    auto starttime = std::chrono::steady_clock::now();
+    std::cout << "\033[?251]";
+    std::cout << "Time :\n";
+    std::cout << "Encrypted message: \n";
+    std::cout << "Remaining lives: \n";
+    std::cout << "Input: \n";
+    while(true){
+        
+
+        auto now = std::chrono::steady_clock::now();
+        int elapsed = std::chrono::duration_cast<std::chrono::seconds>(now-starttime).count();
+        int remaining = timelimit-elapsed;
+        if(remaining<=0){
+            failscreen();
+            
+            
+            return;
+        }
+        std::cout << "\033[4A";
+        std::cout << "\033[2KTime:" << remaining << " seconds\n";
+        std::cout << "\033[2KEncrypted Message (USE CAPS)" << c.encmessage << "\n";
+        std::cout << "\033[2KRemaining lives: " << lives << "\n";
+        std::cout << Color::bold << "\033[2KInput: " << userans << "\n";
+        if(_kbhit()){
+            char key = _getch();
+            if(key == '\r'){
+                if(answer == userans){
+                    clearterm();
+                    winscreen();
+                    break;
+                }
+                else if(answer != userans){
+                    lives--;
+                    userans.clear();
+                    if(lives==0){
+                        failscreen();
+                        return;
+                    }
+                }
+            }
+            else if (key == '\b'){
+                if(!userans.empty()){
+                    userans.pop_back();
+                }
+            }
+            else if(key == ' ' || std::isalnum(static_cast<unsigned char>(key))){
+                userans +=key;
+            }
+        }
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(1)
+        );
+        
+    }
 }
 int main(){
     std::cout << "Loaded:" << std::filesystem::current_path() << std::endl;
