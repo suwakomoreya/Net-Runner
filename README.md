@@ -26,3 +26,6 @@ Up / Down     Navigate menus
 Enter         Select / submit answer
 Esc           Back
 Backspace     Delete a character
+Open "Browse available contracts", pick a job, then choose "Start cipher".
+Decrypt the Caesar cipher and type the answer before the timer runs out.
+Answers are case-sensitive; the game asks for CAPS.
